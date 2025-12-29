@@ -1,9 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-// 경로 에러 방지를 위해 상대 경로로 수정
-import { supabase } from '../lib/supabase'; 
+import { createClient } from '@supabase/supabase-js';
 import { Search, MoreHorizontal, Image as ImageIcon, Clock, SquarePen, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+// 외부 파일 참조 대신 직접 설정 (오타 방지)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function MessageListPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -49,7 +53,7 @@ export default function MessageListPage() {
         </div>
       </header>
       <div className="px-4 pb-4 bg-white">
-        <h1 className="text-[34px] font-bold tracking-tight mb-2 text-black">메시지</h1>
+        <h1 className="text-[34px] font-bold tracking-tight mb-2 text-black font-sans">메시지</h1>
         <div className="relative flex items-center bg-[#E9E9EB] rounded-lg px-2 py-1.5">
           <Search size={18} className="text-[#8E8E93] mr-1.5" />
           <input className="bg-transparent outline-none text-[17px] w-full text-black placeholder-[#8E8E93]" placeholder="검색" />
@@ -58,7 +62,7 @@ export default function MessageListPage() {
       <main className="flex-1 overflow-y-auto">
         <div onClick={() => router.push('/chat')} className="flex items-center px-4 py-3 active:bg-gray-100 cursor-pointer group">
           <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden border border-black/5 shrink-0">
-            {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" alt="pfp" /> : <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500 font-bold text-xl">{profile?.character_name?.charAt(0) || '?'}</div>}
+            {profile?.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" /> : <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500 font-bold text-xl">{profile?.character_name?.charAt(0) || '?'}</div>}
           </div>
           <div className="ml-3 flex-1 border-b border-gray-100 pb-3 group-last:border-none">
             <div className="flex justify-between items-baseline mb-0.5">

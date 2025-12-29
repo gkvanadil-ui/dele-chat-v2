@@ -46,7 +46,7 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="flex flex-col items-center py-6">
           <div onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-full bg-[#E3E3E8] overflow-hidden mb-3 border border-gray-200 flex items-center justify-center cursor-pointer">
-            {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : <Camera size={40} className="text-white" />}
+            {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" /> : <Camera size={40} className="text-white" />}
           </div>
           <button onClick={() => fileInputRef.current?.click()} className="text-[#007AFF] text-[15px]">사진 수정</button>
           <input type="file" ref={fileInputRef} className="hidden" onChange={async (e) => {
@@ -71,7 +71,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="space-y-2 px-1 text-black">
-          <span className="text-[13px] text-gray-500 uppercase ml-3">페르소나 (프롬프트)</span>
+          <span className="text-[13px] text-gray-500 uppercase ml-3 font-medium">페르소나 (프롬프트)</span>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <textarea className="w-full h-48 outline-none text-[15px] resize-none bg-transparent" value={profile.system_prompt} onChange={(e) => setProfile({...profile, system_prompt: e.target.value})} placeholder="말투 적기..." />
           </div>

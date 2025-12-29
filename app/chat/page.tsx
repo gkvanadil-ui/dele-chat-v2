@@ -1,46 +1,31 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import ChatBubble from '@/components/ChatBubble';
-import ChatInput from '@/components/ChatInput';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-export default function ChatRoom() {
-  const [messages, setMessages] = useState([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export default function SettingsPage() {
+  const [config, setConfig] = useState({ key: '', prompt: '', name: '' });
 
-  // 메시지 불러오기 (SwiftData @Query 대체)
-  useEffect(() => {
-    const fetchMsgs = async () => {
-      const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true });
-      if (data) setMessages(data);
-    };
-    fetchMsgs();
-  }, []);
-
-  const handleSend = async (text: string, imgUrl?: string) => {
-    // 유저 메시지 DB 저장 및 UI 반영
-    const { data: newUserMsg } = await supabase.from('messages').insert({ content: text, image_url: imgUrl, is_from_user: true }).select().single();
-    setMessages(prev => [...prev, newUserMsg]);
-
-    // AI 응답 호출
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message: text, history: [], imageUrl: imgUrl })
+  const saveSettings = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('profiles').upsert({
+      id: user?.id,
+      openai_api_key: config.key,
+      system_prompt: config.prompt,
+      character_name: config.name
     });
-    const aiData = await res.json();
-
-    // AI 메시지 DB 저장
-    const { data: newAiMsg } = await supabase.from('messages').insert({ content: aiData.m, is_from_user: false }).select().single();
-    setMessages(prev => [...prev, newAiMsg]);
+    alert("설정이 저장되었습니다!");
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-[#f0f0f0]">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map(m => <ChatBubble key={m.id} message={m} />)}
-        <div ref={scrollRef} />
-      </div>
-      <ChatInput onSend={handleSend} />
+    <div className="p-6 space-y-4">
+      <h1 className="text-xl font-bold">개인 설정</h1>
+      <input placeholder="캐릭터 이름" className="w-full border p-2" 
+        onChange={e => setConfig({...config, name: e.target.value})} />
+      <input placeholder="OpenAI API Key" className="w-full border p-2" type="password"
+        onChange={e => setConfig({...config, key: e.target.value})} />
+      <textarea placeholder="나만의 프롬프트(말투 등)" className="w-full border p-2 h-32"
+        onChange={e => setConfig({...config, prompt: e.target.value})} />
+      <button onClick={saveSettings} className="w-full bg-green-500 text-white p-3 rounded">저장하기</button>
     </div>
   );
 }

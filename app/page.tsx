@@ -1,13 +1,15 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { ChevronLeft, Camera, Save } from 'lucide-react';
+import { ChevronLeft, Camera } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState({
     character_name: '',
+    user_name: '',
     system_prompt: '',
     avatar_url: '',
     openai_api_key: ''
@@ -24,27 +26,30 @@ export default function SettingsPage() {
     if (data) setProfile(data);
   };
 
-  // 사진 수정 버튼 로직 (실제로 작동하게 수정)
-  const handleAvatarUpload = async (e: any) => {
-    const file = e.target.files[0];
+  // 사진 수정 버튼 로직: 클릭 시 파일 탐색기를 엽니다.
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const filePath = `${user?.id}/avatar.${file.name.split('.').pop()}`;
+      const filePath = `${user?.id}/avatar_${Date.now()}.${file.name.split('.').pop()}`;
       
-      // 기존 사진 덮어쓰기 위해 upsert: true 사용
       const { error: uploadError } = await supabase.storage
         .from('photos')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file);
       
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(filePath);
       
-      setProfile({ ...profile, avatar_url: publicUrl });
-      alert("사진이 변경되었습니다. 저장 버튼을 눌러 확정해주세요.");
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      alert("사진이 임시로 변경되었습니다. 우측 상단 '완료'를 눌러 저장하세요.");
     } catch (err: any) {
       alert("사진 업로드 실패: " + err.message);
     } finally {
@@ -55,10 +60,14 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('profiles').update(profile).eq('id', user?.id);
+    const { error } = await supabase.from('profiles').upsert({
+      id: user?.id,
+      ...profile,
+      updated_at: new Date().toISOString()
+    });
     
     if (error) alert("저장 실패: " + error.message);
-    else alert("설정이 저장되었습니다.");
+    else alert("모든 설정이 저장되었습니다.");
     setLoading(false);
   };
 
@@ -67,71 +76,80 @@ export default function SettingsPage() {
       <header className="px-4 pt-12 pb-4 flex justify-between items-center bg-white border-b sticky top-0 z-10">
         <Link href="/" className="text-[#007AFF] flex items-center"><ChevronLeft /> 목록</Link>
         <span className="font-bold text-[17px]">설정</span>
-        <button onClick={saveProfile} disabled={loading} className="text-[#007AFF] font-bold">
-          {loading ? '...' : '저장'}
+        <button onClick={saveProfile} disabled={loading} className="text-[#007AFF] font-bold text-[17px]">
+          {loading ? '...' : '완료'}
         </button>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* 프로필 사진 수정 섹션 */}
-        <div className="flex flex-col items-center py-4">
-          <div className="relative w-24 h-24">
-            <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-2xl">?</div>
-              )}
-            </div>
-            <label className="absolute bottom-0 right-0 bg-[#007AFF] p-2 rounded-full text-white shadow-lg cursor-pointer active:scale-90 transition-transform">
-              <Camera size={18} />
-              <input type="file" className="hidden" onChange={handleAvatarUpload} accept="image/*" />
-            </label>
+        {/* 프로필 사진 섹션: 텍스트 클릭 시 파일 선택 */}
+        <div className="flex flex-col items-center py-6">
+          <div 
+            onClick={triggerFileInput}
+            className="w-24 h-24 rounded-full bg-[#E3E3E8] overflow-hidden mb-3 flex items-center justify-center cursor-pointer border border-gray-200"
+          >
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />
+            ) : (
+              <Camera size={40} className="text-white" />
+            )}
           </div>
-          <p className="text-[13px] text-gray-500 mt-2">사진 수정</p>
+          <button onClick={triggerFileInput} className="text-[#007AFF] text-[15px] active:opacity-50">사진 수정</button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={handleAvatarUpload} 
+            accept="image/*" 
+          />
         </div>
 
-        {/* 기본 정보 설정 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center">
-            <span className="w-24 text-[15px] text-gray-600">이름</span>
+        {/* 정보 입력 섹션 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <span className="text-[15px] text-gray-800">내 이름</span>
             <input 
-              className="flex-1 outline-none text-[15px] text-black"
+              className="text-right outline-none text-[15px] text-gray-500 bg-transparent"
+              value={profile.user_name}
+              onChange={(e) => setProfile({...profile, user_name: e.target.value})}
+              placeholder="본인 이름"
+            />
+          </div>
+          <div className="px-4 py-3 flex items-center justify-between">
+            <span className="text-[15px] text-gray-800">상대 이름</span>
+            <input 
+              className="text-right outline-none text-[15px] text-gray-500 bg-transparent"
               value={profile.character_name}
               onChange={(e) => setProfile({...profile, character_name: e.target.value})}
               placeholder="캐릭터 이름"
             />
           </div>
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center">
-            <span className="w-24 text-[15px] text-gray-600">API 키</span>
-            <input 
-              type="password"
-              className="flex-1 outline-none text-[15px] text-black"
-              value={profile.openai_api_key}
-              onChange={(e) => setProfile({...profile, openai_api_key: e.target.value})}
-              placeholder="sk-..."
-            />
-          </div>
         </div>
 
-        {/* 프롬프트 설정 (복구됨) */}
+        {/* 프롬프트 섹션: 복구 완료 */}
         <div className="space-y-2">
-          <span className="px-4 text-[13px] text-gray-500 uppercase tracking-wider">캐릭터 페르소나 (프롬프트)</span>
+          <span className="px-4 text-[13px] text-gray-500 uppercase">페르소나 (프롬프트)</span>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <textarea 
-              className="w-full h-40 outline-none text-[15px] text-black resize-none"
+              className="w-full h-48 outline-none text-[15px] text-black resize-none bg-transparent"
               value={profile.system_prompt}
               onChange={(e) => setProfile({...profile, system_prompt: e.target.value})}
-              placeholder="AI 캐릭터의 성격과 말투를 상세히 입력하세요."
+              placeholder="여기에 캐릭터의 성격이나 말투를 적으세요."
             />
           </div>
         </div>
 
-        {/* 알람 설정 바로가기 (단어 수정) */}
-        <Link href="/timeline" className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 active:bg-gray-100 transition-colors">
-          <span className="text-[15px] text-black">알람 설정 (구 선톡)</span>
-          <ChevronLeft className="rotate-180 text-gray-300" size={20} />
-        </Link>
+        {/* API 키 섹션 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-2">
+          <div className="text-[13px] text-gray-500 uppercase">OpenAI API Key</div>
+          <input 
+            type="password"
+            className="w-full bg-[#F2F2F7] p-3 rounded-lg text-sm outline-none text-black"
+            value={profile.openai_api_key}
+            onChange={(e) => setProfile({...profile, openai_api_key: e.target.value})}
+            placeholder="sk-..."
+          />
+        </div>
       </div>
     </div>
   );

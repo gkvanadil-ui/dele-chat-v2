@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({ character_name: '', user_name: '', system_prompt: '', avatar_url: '' });
 
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
@@ -27,15 +27,15 @@ export default function SettingsPage() {
         avatar_url: data.avatar_url || ''
       });
     };
-    loadData();
+    load();
   }, []);
 
-  const saveProfile = async () => {
+  const save = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('profiles').upsert({ id: user?.id, ...profile, updated_at: new Date().toISOString() });
-    if (error) alert("저장 실패");
-    else { alert("저장되었습니다."); router.push('/'); }
+    await supabase.from('profiles').upsert({ id: user?.id, ...profile, updated_at: new Date().toISOString() });
+    alert("저장되었습니다.");
+    router.push('/'); // 목록으로 정상 탈출
     setLoading(false);
   };
 
@@ -44,7 +44,7 @@ export default function SettingsPage() {
       <header className="px-4 pt-12 pb-4 flex justify-between items-center bg-white border-b sticky top-0 z-[60]">
         <button onClick={() => router.push('/')} className="text-[#007AFF] flex items-center text-[17px] active:opacity-50"><ChevronLeft size={20} /> 목록</button>
         <span className="font-bold text-[17px]">설정</span>
-        <button onClick={saveProfile} disabled={loading} className="text-[#007AFF] font-bold text-[17px] active:opacity-50">{loading ? '...' : '완료'}</button>
+        <button onClick={save} disabled={loading} className="text-[#007AFF] font-bold text-[17px] active:opacity-50">완료</button>
       </header>
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="flex flex-col items-center py-6">
@@ -57,11 +57,10 @@ export default function SettingsPage() {
             if (!file) return;
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
-            const { data: up } = await supabase.storage.from('photos').upload(`${user?.id}/${Date.now()}`, file);
-            if (up) {
-              const { data: url } = supabase.storage.from('photos').getPublicUrl(up.path);
-              setProfile({...profile, avatar_url: url.publicUrl});
-            }
+            const filePath = `${user?.id}/avatar_${Date.now()}`;
+            await supabase.storage.from('photos').upload(filePath, file);
+            const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(filePath);
+            setProfile({...profile, avatar_url: publicUrl});
             setLoading(false);
           }} accept="image/*" />
         </div>

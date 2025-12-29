@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+// 경로 에러 방지를 위해 상대 경로로 수정
+import { supabase } from '../lib/supabase'; 
 import { Search, MoreHorizontal, Image as ImageIcon, Clock, SquarePen, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -48,7 +49,7 @@ export default function MessageListPage() {
         </div>
       </header>
       <div className="px-4 pb-4 bg-white">
-        <h1 className="text-[34px] font-bold tracking-tight mb-2 text-black font-sans">메시지</h1>
+        <h1 className="text-[34px] font-bold tracking-tight mb-2 text-black">메시지</h1>
         <div className="relative flex items-center bg-[#E9E9EB] rounded-lg px-2 py-1.5">
           <Search size={18} className="text-[#8E8E93] mr-1.5" />
           <input className="bg-transparent outline-none text-[17px] w-full text-black placeholder-[#8E8E93]" placeholder="검색" />

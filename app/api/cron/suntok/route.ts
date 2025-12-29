@@ -3,22 +3,35 @@ import { supabase } from '@/lib/supabase';
 import OpenAI from 'openai';
 
 export async function GET() {
-  const { data: users } = await supabase.from('profiles').select('*').eq('is_notification_enabled', true);
-  if (!users) return NextResponse.json({ m: "No active users" });
+  const now = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
-  for (const user of users) {
-    if (Math.random() > 0.5) {
-      try {
-        const openai = new OpenAI({ apiKey: user.openai_api_key });
-        const res = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{ role: "system", content: `이름:${user.character_name}, 호칭:${user.user_title}. ${user.system_prompt}` }, { role: "user", content: "선톡 보내줘" }],
-          response_format: { type: "json_object" }
-        });
-        const aiRes = JSON.parse(res.choices[0].message.content || '{"m":""}');
-        await supabase.from('messages').insert({ user_id: user.id, content: aiRes.m, is_from_user: false });
-      } catch (e) { console.error(e); }
-    }
+  // 1. 지금 시간이 선톡 시간이고 ON 상태인 유저들 찾기
+  const { data: targets } = await supabase
+    .from('timeline_settings')
+    .select('*, profiles(*)')
+    .eq('is_enabled', true)
+    .eq('suntok_time', now);
+
+  if (!targets || targets.length === 0) return NextResponse.json({ message: "No targets" });
+
+  for (const target of targets) {
+    const openai = new OpenAI({ apiKey: target.profiles.openai_api_key });
+    
+    // 2. AI 선톡 문구 생성
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: target.profiles.system_prompt + " 지금은 " + now + "이야. 상대방에게 먼저 다정한 선톡을 보내줘." }
+      ],
+    });
+
+    const aiMsg = completion.choices[0].message.content;
+
+    // 3. 메시지 DB 저장
+    await supabase.from('messages').insert([
+      { user_id: target.id, content: aiMsg, is_from_user: false }
+    ]);
   }
-  return NextResponse.json({ ok: true });
+
+  return NextResponse.json({ success: true, count: targets.length });
 }

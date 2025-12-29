@@ -62,10 +62,6 @@ export default function SettingsPage() {
             <textarea className="w-full h-48 outline-none text-[15px] text-black resize-none bg-transparent" value={profile.system_prompt} onChange={(e) => setProfile({...profile, system_prompt: e.target.value})} placeholder="캐릭터 말투 적기..." />
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
-          <div className="text-[13px] text-gray-500 uppercase font-medium">OpenAI API Key</div>
-          <input type="password" disabled className="w-full bg-[#F2F2F7] p-3 rounded-lg text-sm outline-none text-gray-400" value={profile.openai_api_key} />
-        </div>
       </div>
     </div>
   );

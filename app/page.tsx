@@ -25,7 +25,7 @@ export default function MessageListPage() {
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-white font-sans text-black overflow-hidden">
-      <header className="px-4 pt-12 pb-2 flex justify-between items-center bg-white sticky top-0">
+      <header className="px-4 pt-12 pb-2 flex justify-between items-center bg-white sticky top-0 border-b border-gray-50">
         <button onClick={() => router.push('/settings')} className="text-[#007AFF] text-[17px]">편집</button>
         <button className="w-8 h-8 bg-[#F2F2F7] rounded-full flex items-center justify-center text-[#007AFF]">
           <MoreHorizontal size={20} />
@@ -41,7 +41,7 @@ export default function MessageListPage() {
       <main className="flex-1 overflow-y-auto">
         <div onClick={() => router.push('/chat')} className="flex items-center px-4 py-3 active:bg-gray-100 cursor-pointer border-b border-gray-100">
           <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">
-            {profile?.avatar_url && <img src={profile.avatar_url} className="w-full h-full object-cover" />}
+            {profile?.avatar_url && <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />}
           </div>
           <div className="ml-3 flex-1 flex justify-between items-center">
             <div>

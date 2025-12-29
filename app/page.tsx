@@ -14,53 +14,49 @@ export default function MessageListPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        setProfile(data);
-      } catch (e) {
-        console.error(e);
-      }
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(data);
     };
-    loadData();
+    load();
   }, []);
 
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white font-sans text-black overflow-hidden border-x shadow-2xl">
-      <header className="px-4 pt-12 pb-2 flex justify-between items-center bg-white sticky top-0 z-50 border-b border-gray-50">
-        <button onClick={() => router.push('/settings')} className="text-[#007AFF] text-[17px] active:opacity-50">편집</button>
-        <button className="w-8 h-8 bg-[#F2F2F7] rounded-full flex items-center justify-center text-[#007AFF] active:scale-95">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '450px', margin: '0 auto', backgroundColor: 'white', color: 'black', overflow: 'hidden', fontFamily: 'sans-serif' }}>
+      <header style={{ padding: '48px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: 'white' }}>
+        <button onClick={() => router.push('/settings')} style={{ color: '#007AFF', fontSize: '17px', background: 'none', border: 'none', cursor: 'pointer' }}>편집</button>
+        <button style={{ width: '32px', height: '32px', backgroundColor: '#F2F2F7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', color: '#007AFF' }}>
           <MoreHorizontal size={20} />
         </button>
       </header>
 
-      <div className="px-4 pb-4 bg-white text-black">
-        <h1 className="text-[34px] font-bold tracking-tight mb-2">메시지</h1>
-        <div className="relative flex items-center bg-[#E9E9EB] rounded-lg px-2 py-1.5">
-          <Search size={18} className="text-[#8E8E93] mr-1.5" />
-          <input className="bg-transparent outline-none text-[17px] w-full text-black placeholder-[#8E8E93]" placeholder="검색" readOnly />
+      <div style={{ padding: '0 16px 16px' }}>
+        <h1 style={{ fontSize: '34px', fontWeight: 'bold', margin: '0 0 8px' }}>메시지</h1>
+        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#E9E9EB', borderRadius: '10px', padding: '6px 10px' }}>
+          <Search size={18} style={{ color: '#8E8E93', marginRight: '6px' }} />
+          <input style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '17px', width: '100%' }} placeholder="검색" />
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto">
-        <div onClick={() => router.push('/chat')} className="flex items-center px-4 py-3 active:bg-gray-100 cursor-pointer border-b border-gray-100 group">
-          <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden border shrink-0">
-            {profile?.avatar_url && <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />}
+      <main style={{ flex: 1, overflowY: 'auto' }}>
+        <div onClick={() => router.push('/chat')} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #F2F2F7', cursor: 'pointer' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#E5E7EB', overflow: 'hidden', flexShrink: 0 }}>
+            {profile?.avatar_url && <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="pfp" />}
           </div>
-          <div className="ml-3 flex-1 flex justify-between items-center text-black">
-            <div>
-              <div className="font-bold text-[16px]">{profile?.character_name || '대화 상대'}</div>
-              <p className="text-gray-500 text-[14px] line-clamp-1">새로운 대화를 시작해보세요.</p>
+          <div style={{ marginLeft: '12px', flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{profile?.character_name || '대화 상대'}</span>
+              <p style={{ color: '#8E8E93', fontSize: '14px', margin: 0 }}>새 메시지를 시작해보세요.</p>
             </div>
-            <ChevronRight size={16} className="text-[#C7C7CC] shrink-0" />
+            <ChevronRight size={16} style={{ color: '#C7C7CC' }} />
           </div>
         </div>
       </main>
 
-      <div className="p-4 flex justify-end sticky bottom-0 pointer-events-none">
-        <button onClick={() => router.push('/chat')} className="pointer-events-auto w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-[#007AFF] active:scale-95">
+      <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', position: 'sticky', bottom: 0 }}>
+        <button onClick={() => router.push('/chat')} style={{ width: '48px', height: '48px', backgroundColor: 'white', borderRadius: '50%', border: '1px solid #F2F2F7', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <SquarePen size={24} />
         </button>
       </div>

@@ -41,7 +41,7 @@ export default function MessageListPage() {
       <main style={{ flex: 1, overflowY: 'auto' }}>
         <div onClick={() => router.push('/chat')} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #F2F2F7', cursor: 'pointer' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#E5E7EB', overflow: 'hidden', flexShrink: 0 }}>
-            {profile?.avatar_url && <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            {profile?.avatar_url && <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="pfp" />}
           </div>
           <div style={{ marginLeft: '12px', flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -25,7 +25,7 @@ export default function MessageListPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '450px', margin: '0 auto', backgroundColor: 'white', color: 'black', overflow: 'hidden' }}>
-      <header style={{ padding: '48px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: 'white' }}>
+      <header style={{ padding: '48px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 10 }}>
         <button onClick={() => router.push('/settings')} style={{ color: '#007AFF', fontSize: '17px', background: 'none', border: 'none', cursor: 'pointer' }}>편집</button>
         <button style={{ width: '32px', height: '32px', backgroundColor: '#F2F2F7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', color: '#007AFF' }}>
           <MoreHorizontal size={20} />

@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ChevronLeft, Camera } from 'lucide-react';
+import { Search, MoreHorizontal, SquarePen, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const supabase = createClient(
@@ -9,94 +9,60 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-export default function SettingsPage() {
+export default function MessageListPage() {
+  const [profile, setProfile] = useState<any>(null);
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState({ character_name: '', user_name: '', system_prompt: '', avatar_url: '' });
 
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (data) setProfile({
-          character_name: data.character_name || '',
-          user_name: data.user_name || '',
-          system_prompt: data.system_prompt || '',
-          avatar_url: data.avatar_url || ''
-        });
+        setProfile(data);
       } catch (e) {
         console.error(e);
       }
     };
-    load();
+    loadData();
   }, []);
 
-  const save = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('profiles').upsert({ id: user?.id, ...profile, updated_at: new Date().toISOString() });
-      alert("설정이 저장되었습니다.");
-      router.push('/');
-    } catch (e) {
-      alert("저장 실패");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-[#F2F2F7] font-sans text-black relative shadow-2xl border-x overflow-hidden">
-      <header className="px-4 pt-12 pb-4 flex justify-between items-center bg-white border-b sticky top-0 z-10">
-        <button onClick={() => router.push('/')} className="text-[#007AFF] flex items-center text-[17px] active:opacity-50">
-          <ChevronLeft size={20} /> 목록
-        </button>
-        <span className="font-bold text-[17px]">설정</span>
-        <button onClick={save} disabled={loading} className="text-[#007AFF] font-bold text-[17px] active:opacity-50">
-          {loading ? '...' : '완료'}
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-white font-sans text-black overflow-hidden border-x shadow-2xl">
+      <header className="px-4 pt-12 pb-2 flex justify-between items-center bg-white sticky top-0 z-50 border-b border-gray-50">
+        <button onClick={() => router.push('/settings')} className="text-[#007AFF] text-[17px] active:opacity-50">편집</button>
+        <button className="w-8 h-8 bg-[#F2F2F7] rounded-full flex items-center justify-center text-[#007AFF] active:scale-95">
+          <MoreHorizontal size={20} />
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        <div className="flex flex-col items-center py-6">
-          <div onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-full bg-[#E3E3E8] overflow-hidden mb-3 border border-gray-200 flex items-center justify-center cursor-pointer active:opacity-70">
-            {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" /> : <Camera size={40} className="text-white" />}
-          </div>
-          <button onClick={() => fileInputRef.current?.click()} className="text-[#007AFF] text-[15px] font-medium">사진 수정</button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: up } = await supabase.storage.from('photos').upload(`${user?.id}/${Date.now()}`, file);
-            if (up) {
-              const { data: url } = supabase.storage.from('photos').getPublicUrl(up.path);
-              setProfile({...profile, avatar_url: url.publicUrl});
-            }
-            setLoading(false);
-          }} />
+      <div className="px-4 pb-4 bg-white text-black">
+        <h1 className="text-[34px] font-bold tracking-tight mb-2">메시지</h1>
+        <div className="relative flex items-center bg-[#E9E9EB] rounded-lg px-2 py-1.5">
+          <Search size={18} className="text-[#8E8E93] mr-1.5" />
+          <input className="bg-transparent outline-none text-[17px] w-full text-black placeholder-[#8E8E93]" placeholder="검색" readOnly />
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y overflow-hidden text-black">
-          <div className="px-4 py-3 flex justify-between items-center">
-            <span className="text-[15px] font-medium">내 이름</span>
-            <input className="text-right outline-none text-[15px] text-gray-500 bg-transparent flex-1" value={profile.user_name} onChange={(e) => setProfile({...profile, user_name: e.target.value})} />
+      <main className="flex-1 overflow-y-auto">
+        <div onClick={() => router.push('/chat')} className="flex items-center px-4 py-3 active:bg-gray-100 cursor-pointer border-b border-gray-100 group">
+          <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden border shrink-0">
+            {profile?.avatar_url && <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />}
           </div>
-          <div className="px-4 py-3 flex justify-between items-center">
-            <span className="text-[15px] font-medium">상대 이름</span>
-            <input className="text-right outline-none text-[15px] text-gray-500 bg-transparent flex-1" value={profile.character_name} onChange={(e) => setProfile({...profile, character_name: e.target.value})} />
+          <div className="ml-3 flex-1 flex justify-between items-center text-black">
+            <div>
+              <div className="font-bold text-[16px]">{profile?.character_name || '대화 상대'}</div>
+              <p className="text-gray-500 text-[14px] line-clamp-1">새로운 대화를 시작해보세요.</p>
+            </div>
+            <ChevronRight size={16} className="text-[#C7C7CC] shrink-0" />
           </div>
         </div>
+      </main>
 
-        <div className="space-y-2 px-1 text-black">
-          <span className="text-[13px] text-gray-500 uppercase font-medium ml-3">페르소나 (프롬프트)</span>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <textarea className="w-full h-48 outline-none text-[15px] text-black resize-none bg-transparent" value={profile.system_prompt} onChange={(e) => setProfile({...profile, system_prompt: e.target.value})} placeholder="말투와 성격을 적어주세요." />
-          </div>
-        </div>
+      <div className="p-4 flex justify-end sticky bottom-0 pointer-events-none">
+        <button onClick={() => router.push('/chat')} className="pointer-events-auto w-12 h-12 bg-white rounded-full shadow-lg border border-gray-100 flex items-center justify-center text-[#007AFF] active:scale-95">
+          <SquarePen size={24} />
+        </button>
       </div>
     </div>
   );

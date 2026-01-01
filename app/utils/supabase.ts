@@ -1,12 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 환경 변수 로드
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// process.env가 undefined일 경우를 대비해 빈 문자열 할당 (빌드 에러 방지)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// 빌드 타임 환경 변수 누락 시 에러 방지 (런타임에는 필수)
-if (typeof window !== 'undefined' && (!supabaseUrl || !supabaseAnonKey)) {
-  console.error('Supabase 환경 변수가 설정되지 않았습니다.');
-}
-
+// 클라이언트 생성 (URL이 비어있으면 기능은 안되지만 빌드는 통과함 -> 런타임에러로 격리)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

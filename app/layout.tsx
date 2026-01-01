@@ -1,14 +1,22 @@
-export const metadata = {
-  title: 'AI iMessage',
-  description: 'Clean start version',
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css'; // globals.css가 없다면 이 줄을 지우세요.
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Chat App',
+  description: 'Next.js Supabase Chat',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ko">
-      <body style={{ margin: 0, padding: 0, backgroundColor: '#F2F2F7', fontFamily: 'sans-serif' }}>
-        {children}
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

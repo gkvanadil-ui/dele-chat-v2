@@ -1,237 +1,244 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Send, Image as ImageIcon, Phone, Video } from 'lucide-react';
-import { supabase } from '../utils/supabase';
-import { Message, Profile } from '../types';
+import { supabase } from '../utils/supabase'; // 상대 경로 표준화
+import type { Message, Profile } from '../types'; // 타입 import 통합
+
+// UUID 생성 폴백 (브라우저 호환성 확보)
+const generateUUID = () => {
+  if (typeof self !== 'undefined' && self.crypto && self.crypto.randomUUID) {
+    return self.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 export default function ChatPage() {
   const router = useRouter();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // 상태 관리
+  const [user, setUser] = useState<any>(null); // Supabase User 타입 사용 권장
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // 초기 로딩
+  const [isSending, setIsSending] = useState(false); // 메시지 전송 중
 
+  // 스크롤 ref
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 1. 세션 체크 및 초기 데이터 로드
   useEffect(() => {
-    const loadData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace('/'); return; }
+    const initialize = async () => {
+      try {
+        // getUser가 getSession보다 보안상 권장됨
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      setProfile(profileData);
+        if (authError || !user) {
+          router.replace('/'); // 세션 없으면 홈으로 리다이렉트
+          return;
+        }
 
-      const { data: msgData } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: true });
-        
-      if (msgData) setMessages(msgData);
+        setUser(user);
+
+        // 메시지 로드
+        const { data: msgData, error: msgError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('user_id', user.id) // 본인 메시지만 로드
+          .order('created_at', { ascending: true });
+
+        if (msgError) throw msgError;
+        setMessages(msgData || []);
+
+      } catch (error) {
+        console.error('초기화 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    loadData();
+
+    initialize();
   }, [router]);
 
+  // 2. 스크롤 자동 이동 (메시지 추가 시)
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isSending]);
 
-  const sendMessage = async (text: string, imageUrl?: string) => {
-    if ((!text.trim() && !imageUrl) || isLoading) return;
-    
-    const tempId = self.crypto.randomUUID();
+  // 3. 메시지 전송 핸들러
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || isSending || !user) return;
+
+    const currentText = inputText.trim();
+    setInputText(''); // 입력창 즉시 비움 (UX)
+    setIsSending(true);
+
+    // 낙관적 업데이트용 ID 및 Timestamp
+    const tempId = generateUUID();
     const now = new Date().toISOString();
-    
-    const tempUserMessage: Message = {
+
+    const newUserMsg: Message = {
       id: tempId,
-      content: text,
       role: 'user',
-      image_url: imageUrl,
-      created_at: now
+      content: currentText,
+      user_id: user.id,
+      created_at: now,
     };
-    
-    setMessages(prev => [...prev, tempUserMessage]);
-    setInputText('');
-    setIsLoading(true);
-    setIsTyping(true);
+
+    // UI 낙관적 업데이트
+    setMessages((prev) => [...prev, newUserMsg]);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No session");
+      // 3-1. 사용자 메시지 DB 저장 (필수)
+      const { error: insertError } = await supabase
+        .from('messages')
+        .insert([
+          {
+            // id는 DB에서 자동 생성되거나, UUID를 직접 지정 가능. 
+            // 여기서는 일관성을 위해 DB가 생성하게 하거나 위에서 만든 ID 사용.
+            // 보통 DB default uuid_generate_v4()를 쓴다면 제외, 아니면 포함.
+            role: 'user',
+            content: currentText,
+            user_id: user.id,
+          }
+        ]);
 
+      if (insertError) throw new Error('메시지 저장 실패');
+
+      // 3-2. AI 응답 요청
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ message: text, imageUrl }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: currentText, history: messages }),
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) throw new Error('AI 응답 실패');
 
       const data = await response.json();
-      
-      if (data.reply) {
-        const aiMessage: Message = {
-          id: data.generatedMessageId || self.crypto.randomUUID(),
-          content: data.reply,
+      const aiContent = data.reply;
+
+      const newAiMsg: Message = {
+        id: generateUUID(),
+        role: 'assistant',
+        content: aiContent,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+      };
+
+      // 3-3. AI 메시지 UI 업데이트
+      setMessages((prev) => [...prev, newAiMsg]);
+
+      // 3-4. AI 메시지 DB 저장 (필수)
+      // 클라이언트가 저장하는 방식 (RLS 정책상 본인 row insert 허용 필요)
+      await supabase.from('messages').insert([
+        {
           role: 'assistant',
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      }
+          content: aiContent,
+          user_id: user.id,
+        }
+      ]);
+
     } catch (error) {
-      console.error('Chat Error:', error);
-      alert('메시지 전송에 실패했습니다.');
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      console.error('전송 에러:', error);
+      // 에러 시 롤백 또는 알림 처리
+      alert('메시지 전송 중 오류가 발생했습니다.');
+      // 선택적: 실패한 메시지를 제거하거나 재시도 버튼 표시
+      setMessages((prev) => prev.filter(msg => msg.id !== tempId));
+      setInputText(currentText); // 입력 내용 복구
     } finally {
-      setIsLoading(false);
-      setIsTyping(false);
+      setIsSending(false);
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('chat-images')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = await supabase.storage
-        .from('chat-images')
-        .createSignedUrl(fileName, 3600); 
-
-      if (data?.signedUrl) {
-        sendMessage('', data.signedUrl);
-      }
-    } catch (error) {
-      console.error('Upload Error:', error);
-      alert('이미지 업로드 실패');
+  // 4. 엔터키 핸들러 (IME 중복 입력 방지)
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return; // 한글 조합 중이면 무시
+    if (e.key === 'Enter') {
+      handleSendMessage();
     }
   };
+
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">로딩 중...</div>;
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '450px', margin: '0 auto', backgroundColor: 'white' }}>
-      {/* Header */}
-      <header style={{ 
-        padding: '48px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: 'rgba(245, 245, 247, 0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #D1D1D6',
-        position: 'sticky', top: 0, zIndex: 10
-      }}>
-        <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', color: '#007AFF', border: 'none', background: 'none', cursor: 'pointer' }}>
-          <ChevronLeft size={24} /> <span style={{fontSize: '17px'}}>목록</span>
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-white border-x border-gray-200 shadow-sm">
+      {/* 헤더 */}
+      <header className="p-4 border-b flex justify-between items-center bg-white z-10">
+        <h1 className="text-lg font-bold text-gray-800">Chat</h1>
+        <button 
+          onClick={() => router.push('/')} 
+          className="text-sm text-gray-500 hover:text-gray-800"
+        >
+          나가기
         </button>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#8E8E93', overflow: 'hidden', marginBottom: '4px' }}>
-            {profile?.avatar_url && <img src={profile.avatar_url} style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
-          </div>
-          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{profile?.character_name || '상대방'}</span>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '16px', color: '#007AFF' }}>
-          <Video size={24} />
-          <Phone size={24} />
-        </div>
       </header>
 
-      {/* Chat Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'white' }}>
+      {/* 메시지 리스트 */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         {messages.map((msg) => {
-          const isMe = msg.role === 'user';
+          const isUser = msg.role === 'user';
           return (
-            <div key={msg.id} style={{ 
-              alignSelf: isMe ? 'flex-end' : 'flex-start', 
-              maxWidth: '75%',
-              display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start'
-            }}>
-              {msg.image_url && (
-                <img src={msg.image_url} alt="sent" style={{ borderRadius: '12px', marginBottom: '4px', maxWidth: '100%', border: '1px solid #E5E5EA' }} />
-              )}
-              {msg.content && msg.content !== '(사진 전송)' && (
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: '18px',
-                  backgroundColor: isMe ? '#007AFF' : '#E9E9EB',
-                  color: isMe ? 'white' : 'black',
-                  fontSize: '16px',
-                  lineHeight: '1.4',
-                  borderBottomRightRadius: isMe ? '4px' : '18px',
-                  borderBottomLeftRadius: isMe ? '18px' : '4px',
-                  wordBreak: 'break-word'
-                }}>
-                  {msg.content}
-                </div>
-              )}
+            <div
+              key={msg.id} // idx 대신 고유 id 사용 (필수)
+              className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm whitespace-pre-wrap ${
+                  isUser
+                    ? 'bg-blue-500 text-white rounded-tr-none'
+                    : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
+                }`}
+              >
+                {msg.content}
+              </div>
             </div>
           );
         })}
-        {isTyping && (
-           <div style={{ alignSelf: 'flex-start', padding: '10px 14px', borderRadius: '18px', backgroundColor: '#E9E9EB', borderBottomLeftRadius: '4px' }}>
-             <span style={{ color: '#8E8E93', fontSize: '14px' }}>입력 중...</span>
-           </div>
+        {isSending && (
+          <div className="flex justify-start">
+            <div className="bg-gray-200 text-gray-500 text-xs px-3 py-1.5 rounded-full animate-pulse">
+              AI가 생각 중...
+            </div>
+          </div>
         )}
-        <div ref={scrollRef} />
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div style={{ padding: '12px 16px 24px', backgroundColor: '#F2F2F7', display: 'flex', alignItems: 'flex-end', gap: '10px' }}>
-        <button onClick={() => fileInputRef.current?.click()} style={{ padding: '8px', color: '#8E8E93', border: 'none', background: 'none', cursor: 'pointer' }}>
-          <ImageIcon size={24} />
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          accept="image/*"
-          onChange={handleImageUpload}
-        />
-        
-        <div style={{ 
-          flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '8px 12px', 
-          border: '1px solid #D1D1D6', display: 'flex', alignItems: 'center' 
-        }}>
-          <input 
-            style={{ width: '100%', border: 'none', outline: 'none', fontSize: '16px', maxHeight: '100px', backgroundColor: 'transparent' }}
-            placeholder="iMessage"
+      {/* 입력 영역 */}
+      <div className="p-4 border-t bg-white">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-blue-500 transition-colors disabled:bg-gray-100"
+            placeholder="메시지를 입력하세요..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage(inputText)}
-            disabled={isLoading}
+            onKeyDown={handleKeyDown}
+            disabled={isSending}
+            autoComplete="off"
           />
+          <button
+            onClick={handleSendMessage}
+            disabled={isSending || !inputText.trim()}
+            className="bg-blue-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
+          >
+            {/* 전송 아이콘 (SVG) */}
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 24 24" 
+              fill="currentColor" 
+              className="w-5 h-5"
+            >
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+            </svg>
+          </button>
         </div>
-        
-        <button 
-          onClick={() => sendMessage(inputText)} 
-          disabled={!inputText.trim() || isLoading}
-          style={{ 
-            width: '32px', height: '32px', borderRadius: '50%', 
-            backgroundColor: inputText.trim() ? '#007AFF' : '#8E8E93', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            border: 'none', color: 'white', transition: 'background-color 0.2s', cursor: 'pointer'
-          }}
-        >
-          <Send size={16} />
-        </button>
       </div>
     </div>
   );

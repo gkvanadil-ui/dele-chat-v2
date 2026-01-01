@@ -8,6 +8,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // React Strict Mode (두 번 렌더링 방지)
   reactStrictMode: false,
 };
 

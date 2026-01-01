@@ -1,11 +1,10 @@
-// app/chat/page.tsx
-
 'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Send, Image as ImageIcon, Phone, Video } from 'lucide-react';
-import { supabase } from '../utils/supabase'; // 상대 경로 수정
-import { Message, Profile } from '../types';   // 상대 경로 수정
+import { supabase } from '../utils/supabase'; // 상대경로 주의
+import { Message, Profile } from '../types';   // 상대경로 주의
 
 export default function ChatPage() {
   const router = useRouter();

@@ -11,8 +11,8 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="animate-pulse">Loading...</div>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-pulse text-gray-500">Loading...</div>
     </div>
   );
 }

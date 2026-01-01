@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Cloudflare Chat App",
-  description: "Next.js 14.3.0 on Cloudflare Pages",
+  title: "Cloudflare Next.js Chat",
+  description: "Deploying Next.js 14.3.0 on Cloudflare Pages",
 };
 
 export default function RootLayout({

@@ -1,19 +1,13 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+export const runtime = 'edge';
 
 export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // 접속 시 바로 채팅 화면으로 이동
-    router.replace('/chat');
-  }, [router]);
-
   return (
-    <div className="flex h-screen items-center justify-center">
-      <p className="animate-pulse text-gray-500">Loading...</p>
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
+        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+          Cloudflare Pages + Next.js 14.3.0 Fixed
+        </p>
+      </div>
+    </main>
   );
 }

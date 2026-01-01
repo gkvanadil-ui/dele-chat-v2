@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Send, Image as ImageIcon, Phone, Video } from 'lucide-react';
-import { supabase } from '../utils/supabase'; // 상대경로 주의
-import { Message, Profile } from '../types';   // 상대경로 주의
+import { supabase } from '../utils/supabase';
+import { Message, Profile } from '../types';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -17,13 +17,11 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
-  // 1. 초기 데이터 로드 및 세션 체크
   useEffect(() => {
     const loadData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/'); return; }
 
-      // 프로필 로드
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
@@ -31,7 +29,6 @@ export default function ChatPage() {
         .single();
       setProfile(profileData);
 
-      // 메시지 내역 로드
       const { data: msgData } = await supabase
         .from('messages')
         .select('*')
@@ -43,16 +40,13 @@ export default function ChatPage() {
     loadData();
   }, [router]);
 
-  // 스크롤 자동 이동
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // 2. 메시지 전송
   const sendMessage = async (text: string, imageUrl?: string) => {
     if ((!text.trim() && !imageUrl) || isLoading) return;
     
-    // [UX] 낙관적 업데이트
     const tempId = self.crypto.randomUUID();
     const now = new Date().toISOString();
     
@@ -86,7 +80,6 @@ export default function ChatPage() {
 
       const data = await response.json();
       
-      // AI 응답 추가
       if (data.reply) {
         const aiMessage: Message = {
           id: data.generatedMessageId || self.crypto.randomUUID(),
@@ -106,7 +99,6 @@ export default function ChatPage() {
     }
   };
 
-  // 3. 이미지 업로드
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

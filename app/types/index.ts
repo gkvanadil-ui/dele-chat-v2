@@ -1,3 +1,8 @@
+export interface User {
+  id: string;
+  email?: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -6,7 +11,7 @@ export interface Message {
   created_at: string;
 }
 
-export interface User {
-  id: string;
-  email?: string;
+export interface ChatRequest {
+  message: string;
+  history: Message[];
 }

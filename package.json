@@ -1,32 +1,113 @@
-{
-  "name": "universal-character-chat",
-  "version": "0.1.0",
-  "private": true,
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "14.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "openai": "^4.24.1",
-    "@supabase/supabase-js": "^2.39.3",
-    "lucide-react": "^0.344.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.3.3",
-    "@types/node": "^20.11.24",
-    "@types/react": "^18.2.61",
-    "@types/react-dom": "^18.2.19",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "autoprefixer": "^10.4.18",
-    "@netlify/plugin-nextjs": "5.15.3"
-  }
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, MoreHorizontal, SquarePen, ChevronRight, User, Settings, Image as ImageIcon } from 'lucide-react';
+import { supabase } from './utils/supabase'; // utils 경로 확인 필요 (없다면 상대경로 조정)
+import { Profile } from './types'; // types 경로 확인 필요
+
+export default function MessageListPage() {
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  
+  // [수정] 메뉴 토글을 위한 상태 추가
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // 로그인 상태가 아니면 로그인 페이지나 처리가 필요하지만, MVP에서는 패스
+        return;
+      }
+      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      setProfile(data);
+    };
+    load();
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '450px', margin: '0 auto', backgroundColor: 'white', color: 'black', position: 'relative', overflow: 'hidden' }}>
+      
+      {/* Header */}
+      <header style={{ padding: '48px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 20 }}>
+        <button onClick={() => router.push('/settings')} style={{ color: '#007AFF', fontSize: '17px', background: 'none', border: 'none', cursor: 'pointer' }}>
+          편집
+        </button>
+        
+        {/* [수정] ... 버튼 클릭 이벤트 연결 및 메뉴 UI 구현 */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            style={{ width: '32px', height: '32px', backgroundColor: '#F2F2F7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', color: '#007AFF', cursor: 'pointer' }}
+          >
+            <MoreHorizontal size={20} />
+          </button>
+
+          {/* 드롭다운 메뉴 */}
+          {isMenuOpen && (
+            <div style={{
+              position: 'absolute', top: '40px', right: 0,
+              backgroundColor: 'white', borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              width: '200px', padding: '8px', zIndex: 50,
+              border: '1px solid #E5E5EA'
+            }}>
+              <div onClick={() => { router.push('/settings'); setIsMenuOpen(false); }} style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '8px', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F2F2F7'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                <Settings size={18} /> <span>설정</span>
+              </div>
+              <div onClick={() => { alert('갤러리 기능 준비중'); setIsMenuOpen(false); }} style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderRadius: '8px' }} onMouseOver={(e) => e.currentTarget.style.background = '#F2F2F7'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                <ImageIcon size={18} /> <span>갤러리</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Search Bar */}
+      <div style={{ padding: '0 16px 16px' }}>
+        <h1 style={{ fontSize: '34px', fontWeight: 'bold', margin: '0 0 8px' }}>메시지</h1>
+        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#E9E9EB', borderRadius: '10px', padding: '8px 10px' }}>
+          <Search size={18} style={{ color: '#8E8E93', marginRight: '6px' }} />
+          <input style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '17px', width: '100%' }} placeholder="검색" />
+        </div>
+      </div>
+
+      {/* Message List */}
+      <main style={{ flex: 1, overflowY: 'auto' }}>
+        {/* [수정] 클릭 시 /chat 경로로 이동하도록 고정 */}
+        <div 
+          onClick={() => router.push('/chat')} 
+          style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #F2F2F7', cursor: 'pointer' }}
+        >
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#E5E7EB', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="pfp" />
+            ) : (
+              <User size={24} color="#8E8E93" />
+            )}
+          </div>
+          <div style={{ marginLeft: '12px', flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{profile?.character_name || '대화 상대'}</span>
+              <p style={{ color: '#8E8E93', fontSize: '14px', margin: '4px 0 0 0' }}>대화를 시작하려면 터치하세요.</p>
+            </div>
+            <ChevronRight size={16} style={{ color: '#C7C7CC' }} />
+          </div>
+        </div>
+      </main>
+
+      {/* Floating Action Button */}
+      <div style={{ padding: '16px', display: 'flex', justifyContent: 'flex-end', position: 'sticky', bottom: 0 }}>
+        <button onClick={() => router.push('/chat')} style={{ width: '56px', height: '56px', backgroundColor: 'white', borderRadius: '50%', border: '1px solid #F2F2F7', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <SquarePen size={28} />
+        </button>
+      </div>
+
+      {/* Backdrop for Menu (Optional: 메뉴 열렸을 때 배경 클릭 시 닫기) */}
+      {isMenuOpen && (
+        <div onClick={() => setIsMenuOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }} />
+      )}
+    </div>
+  );
 }
